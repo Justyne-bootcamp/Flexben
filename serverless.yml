@@ -1,0 +1,68 @@
+service: awsnodetraining-chang-express
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: ap-southeast-1
+  timeout: 15
+  lambdaHashingVersion: 20201221
+  deploymentBucket:
+    name: 'awsnodejstraining'
+  memorySize: 128 # mb
+  environment:
+    USERS_TABLE: chang_employees
+    TRANSACTIONS_TABLE: chang_test_transac_table
+    CATEGORIES_TABLE: chang_employees2
+    CUTTOFFS_TABLE: chang_test_cutoffs_table
+    SECRET_KEY: oij(*&H(noim9p7t(Holkkppo)))
+    MIN_REIMBURSABLE_AMOUNT: 500
+    TAX_RATE: 0.12
+
+plugins:
+  - serverless-offline
+
+functions:
+  api:
+    role: arn:aws:iam::702954692849:role/awsnodetraining-dev-role
+    handler: handler.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - PoolId
+              - TenantId
+              - isEso
+              - userId
+            allowCredentials: true   
+
+resources:
+  Resources:
+    GatewayResponseDefault4XX:
+      Type: 'AWS::ApiGateway::GatewayResponse'
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: 'ApiGatewayRestApi'
+    GatewayResponseDefault5XX:
+      Type: 'AWS::ApiGateway::GatewayResponse'
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: 'ApiGatewayRestApi'
