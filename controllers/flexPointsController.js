@@ -1,5 +1,3 @@
-require('dotenv').config()
-
 const calculateFlexPoints = (req, res) => {
     if (req.user.role != 'employee') {
         res.status(400).send("This function is for employees only.")
