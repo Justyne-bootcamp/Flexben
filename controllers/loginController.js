@@ -18,7 +18,7 @@ const login = async (req, res) => {
                 employeeId: credentials[0] // should be email for actual database
             }
         }
-        // console.log(loginParams);
+
         const userInfo = await loginService.login(loginParams)
         if (userInfo != null && await bcrypt.compare(credentials[1], userInfo.password)) {
             // Successful login
@@ -32,8 +32,23 @@ const login = async (req, res) => {
                 "companyCode": userInfo.companyCode,
                 "role": userInfo.role
             }
-            // console.log(user);
+
             const accessToken = jwt.sign(user, SECRET_KEY)
+
+            // update stateful jwt in db
+            var updateJwtParams = {
+                TableName: USERS_TABLE,
+                Key: {
+                    employeeId: credentials[0]
+                },
+                UpdateExpression: 'set accessToken = :t, tokenStatus = :s',
+                ExpressionAttributeValues: {
+                    ':t': accessToken,
+                    ':s': 'active'
+                }
+            };
+            loginService.updateToken(updateJwtParams)
+
             res.json({
                 "message": "Welcome back, " + userInfo.firstName + " " + userInfo.lastName + " (" + userInfo.role + ")",
                 "accessToken": accessToken
@@ -82,19 +97,19 @@ const authenticateToken = (req, res, next) => {
 }
 
 const exportCategories = async () => {
-    return new Promise (function (resolve, _reject) {
+    return new Promise(function (resolve, _reject) {
         resolve(categoryList)
     })
 }
 
 const exportCutOffs = async () => {
-    return new Promise (function (resolve, _reject) {
+    return new Promise(function (resolve, _reject) {
         resolve(cutOffList)
     })
 }
 
 const exportLatestCutOffs = async () => {
-    return new Promise (function (resolve, _reject) {
+    return new Promise(function (resolve, _reject) {
         resolve(cutOffList[0])
     })
 }
