@@ -4,6 +4,7 @@ const loginController = require('../controllers/loginController')
 
 const MIN_REIMBURSABLE_AMOUNT = process.env.MIN_REIMBURSABLE_AMOUNT
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE
+const USERS_TABLE = process.env.USERS_TABLE
 
 const viewCategories = async (req, res) => {
     const categoryList = await loginController.exportCategories()
@@ -168,7 +169,7 @@ const getReimbursement = async (req, res) => {
         const getReimbursementParams = {
             TableName: TRANSACTIONS_TABLE,
             ExpressionAttributeValues: {
-                ':pk': req.user.employeeNumber  + "#" + year + "#" + cutOff.cutOffCycle,
+                ':pk': req.user.employeeNumber + "#" + year + "#" + cutOff.cutOffCycle,
                 ':sk': 'CUTOFF'
             },
             KeyConditionExpression: 'PK = :pk and begins_with ( SK, :sk)',
@@ -180,8 +181,8 @@ const getReimbursement = async (req, res) => {
         res.status(400).send("This function is only for HR personnel.")
     }
     else if (req.user.role == 'hr' && req.params.cutoff_id == null) {
-                res.status(400).send("Please specify a cut-off period.")
-            }
+        res.status(400).send("Please specify a cut-off period.")
+    }
     else {
         res.status(400).send("Please login.")
     }
@@ -195,11 +196,11 @@ const reimbursementList = async (req, res) => {
     }
     const cutOffCycle = req.params.cutoff_id
     const cutOff = await loginController.exportLatestCutOffs()
-    console.log(req.user.employeeNumber  + "#" + cutOff.year + "#" + cutOffCycle)
+    console.log(req.user.employeeNumber + "#" + cutOff.year + "#" + cutOffCycle)
     const reimbursementItemParams = {
         TableName: TRANSACTIONS_TABLE,
         ExpressionAttributeValues: {
-            ':pk': req.user.employeeNumber  + "#" + cutOff.year + "#" + cutOffCycle,
+            ':pk': req.user.employeeNumber + "#" + cutOff.year + "#" + cutOffCycle,
             ':sk': 'ITEM'
         },
         KeyConditionExpression: 'PK = :pk and begins_with ( SK, :sk)',
@@ -356,41 +357,166 @@ const removeReimbursement = async (req, res) => {
         res.status(400).send("This function is only for employees.")
         return
     }
-    
+
     const cutOff = await loginController.exportLatestCutOffs();
-    
+
     let getReimbursementParams = {
         TableName: TRANSACTIONS_TABLE,
         Key: {
-            PK:  req.user.employeeNumber + '#' + cutOff.year + "#" + cutOff.cutOffCycle,
+            PK: req.user.employeeNumber + '#' + cutOff.year + "#" + cutOff.cutOffCycle,
             SK: 'ITEM#' + req.params.orNumber
         }
     }
     let reimbursementItem = await reimburseService.getReimbursementItem(getReimbursementParams);
-    
-    if(reimbursementItem){
+
+    if (reimbursementItem) {
         let orNumber = 'ITEM#' + req.params.orNumber;
         console.log(orNumber);
 
-        if(reimbursementItem.currentStatus == 'draft'){
+        if (reimbursementItem.currentStatus == 'draft') {
             let deleteReimbursementParams = {
                 TableName: TRANSACTIONS_TABLE,
                 Key: {
-                    PK:  req.user.employeeNumber + '#' + cutOff.year + "#" + cutOff.cutOffCycle,
+                    PK: req.user.employeeNumber + '#' + cutOff.year + "#" + cutOff.cutOffCycle,
                     SK: 'ITEM#' + req.params.orNumber
                 }
             }
             let item = await reimburseService.deleteReimbursementItem(deleteReimbursementParams);
-        
+
             res.status(200).send("Reimbursement deleted.");
         }
-        else{
+        else {
             res.status(400).send("Reimbursement item does not exist or has been submitted/approved.");
         }
     }
-    else{
+    else {
         res.status(400).send("Reimbursement item does not exist");
     }
+}
+
+const submitReimbursement = async (req, res) => {
+    // role validation
+    if (req.user.role != 'employee') {
+        res.status(400).send("This function is only for employees.")
+        return
+    }
+
+    let reimbursement = '';
+    // const cutOff = await loginController.exportLatestCutOffs()
+    const transactionNum = uuidv4()
+    const { cutOffCapAmount, year, cutOffCycle, cutOff } = await loginController.exportLatestCutOffs()
+
+
+    const getSumParams = {
+        TableName: TRANSACTIONS_TABLE,
+        KeyConditionExpression: 'PK = :pk and begins_with (SK, :sk)',
+        ExpressionAttributeValues: {
+            ':pk': req.user.employeeNumber + "#" + year + "#" + cutOffCycle,
+            ':sk': 'ITEM'
+        }
+    }
+
+    const totalReimbursementAmount = await reimburseService.getSum(getSumParams)
+
+    if (totalReimbursementAmount > cutOffCapAmount) {
+        res.status(400).send("Total Cutoff Amount Exceeded, Submission failed")
+        return
+    }
+
+    console.log(req.user.employeeNumber + "#" + year + "#" + cutOffCycle)
+    const searchParams = {
+        TableName: TRANSACTIONS_TABLE,
+        FilterExpression: 'PK = :pk AND SK BETWEEN:skCutoff AND :skUser AND currentStatus = :currentStatus',
+        ExpressionAttributeValues: {
+            ":currentStatus": "draft",
+            ':skCutoff': "CUTOFF",
+            ':skUser': "USER",
+            ':pk': req.user.employeeNumber + "#" + year + "#" + cutOffCycle,
+        },
+    };
+    let reimbursementDetails = await reimburseHrService.getReimbursement(searchParams)
+    if (reimbursementDetails == 0) {
+        res.status(400).send("Reimbursement not found or no reimbursement has been drafted.")
+        return
+    }
+    const approvalParams = [];
+    reimbursementDetails.forEach(item => {
+        approvalParams.push(
+            {
+                TableName: TRANSACTIONS_TABLE,
+                Key: {
+                    'PK': item.PK,
+                    'SK': item.SK
+                },
+                UpdateExpression: "set currentStatus = :newStatus, dateUpdated = :dateUpdated, dateSubmitted = :dateUpdated",
+                ExpressionAttributeValues: {
+                    ":dateUpdated": getDateToday(),
+                    ":newStatus": "submitted",
+                },
+            }
+        )
+    })
+
+    console.log(approvalParams)
+    await reimburseHrService.approvalReimbursement(approvalParams)
+    res.status(200).send("Reimbursement submitted.")
+
+}
+
+
+const searchReimbursement = async (req, res) => {
+    if (req.user.role != 'hr') {
+        res.status(400).send("This function is only for HR personnel.")
+        return
+    }
+
+    let employeeDetails = {
+        "employeeNumber": req.query.employeeNumber ? req.query.employeeNumber : "",
+        "firstName": req.query.firstName ? req.query.firstName : "",
+        "lastName": req.query.lastName ? req.query.lastName : "",
+        "cutOffCycle": req.params.cutOffCycle,
+        "year": req.params.year
+    }
+
+    const cutOff = await loginController.exportLatestCutOffs()
+
+    const year = employeeDetails.year || cutOff.year
+    const cutOffCycle = employeeDetails.cutOffCycle || cutOff.cutOffCycle
+
+
+    var params = {
+        TableName: USERS_TABLE,
+        ExpressionAttributeValues: {
+            ':firstName': 'Jan'
+        },
+        FilterExpression: 'contains (firstName, :firstName)',
+
+
+    };
+
+    const userInfo = await reimburseHrService.getEmployeeNum(params)
+
+    const reimbursementsParams = [];
+
+    userInfo.forEach(item => {
+        reimbursementsParams.push(
+            {
+                TableName: TRANSACTIONS_TABLE,
+                Key: {
+                    'PK': item.employeeNumber + "#" + year + "#" + cutOffCycle,
+                    'SK': 'CUTOFF#' + cutOffCycle
+                }
+            }
+        )
+    })
+
+    let searchReimbursementResult = []
+
+    for (const item of reimbursementsParams) {
+        searchReimbursementResult.push(await reimburseHrService.getListReimbursementByEmployee(item))
+    }
+
+    res.status(200).send(searchReimbursementResult)
 }
 
 module.exports = {
@@ -402,12 +528,13 @@ module.exports = {
     approveReimbursement,
     rejectReimbursement,
     getDetailsHr,
+    submitReimbursement,
     // getReimbursement,
     // getReimbursementFull,
     // reimbursementList,
-    removeReimbursement
+    removeReimbursement,
     // submitReimbursement,
-    // searchReimbursement,
+    searchReimbursement,
     // approveReimbursement,
     // rejectReimbursement,
     // getCategories
