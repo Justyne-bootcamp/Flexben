@@ -260,24 +260,40 @@ const rejectReimbursement = async (req, res) => {
     }
     const cutOff = await loginController.exportLatestCutOffs()
     console.log(req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle)
-    const approveParams = {
+    const searchParams = {
         TableName: TRANSACTIONS_TABLE,
-        Key: {
-            'PK': req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle,
-            'SK': "CUTOFF#" + cutOff.cutOffCycle,
-        },
-        ConditionExpression: "currentStatus = :currentStatus",
-        UpdateExpression: "set currentStatus = :newStatus, dateUpdated = :dateUpdated",
+        FilterExpression: 'PK = :pk AND SK BETWEEN:skCutoff AND :skUser AND currentStatus = :currentStatus',
         ExpressionAttributeValues: {
-            ':newStatus': "rejected",
-            ':currentStatus': "submitted",
-            ":dateUpdated": getDateToday()
+            ":currentStatus": "submitted",
+            ':skCutoff': "CUTOFF",
+            ':skUser': "USER",
+            ':pk': req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle,
         },
-        ReturnValues: "UPDATED_NEW"
     };
-    let rejection = await reimburseHrService.approvalReimbursement(approveParams)
-    console.log("rejection" +rejection);
-    res.status(200).send(rejection ? "Reimbursement rejected." : "Reimbursement not found, not yet submitted, or has been approved/rejected.")
+    let reimbursementDetails = await reimburseHrService.getReimbursement(searchParams)
+    if (reimbursementDetails == 0) {
+        res.status(400).send("Reimbursement not found, not yet submitted, or has been approved/rejected.")
+        return
+    }
+    const rejectParams = [];
+    reimbursementDetails.forEach(item => {
+        rejectParams.push(
+            {
+                TableName: TRANSACTIONS_TABLE,
+                Key: {
+                    'PK': item.PK,
+                    'SK': item.SK
+                },
+                UpdateExpression: "set currentStatus = :newStatus, dateUpdated = :dateUpdated",
+                ExpressionAttributeValues: {
+                    ":newStatus": "rejected",
+                    ":dateUpdated": getDateToday()
+                },
+            }
+        )
+    })
+    await reimburseHrService.approvalReimbursement(rejectParams)
+    res.status(200).send("Reimbursement rejected.")
 }
 
 // charles
