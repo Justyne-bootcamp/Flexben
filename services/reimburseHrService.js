@@ -4,12 +4,12 @@ const dynamoDbClient = new AWS.DynamoDB.DocumentClient();
 // charles
 const getReimbursementByCutOff = async (getReimbursementByCutOffParams) => {
     try {
-        const {Items}  = await dynamoDbClient.scan(getReimbursementByCutOffParams).promise();  
+        const { Items } = await dynamoDbClient.scan(getReimbursementByCutOffParams).promise();
 
         if (Items) {
             return Items
         } else {
-            return 
+            return
         }
     } catch (error) {
         console.log(error);
@@ -20,12 +20,12 @@ const getReimbursementByCutOff = async (getReimbursementByCutOffParams) => {
 
 const getDetailsHr = async (getDetailsHrParams) => {
     try {
-        const {Items}  = await dynamoDbClient.scan(getDetailsHrParams).promise();  
+        const { Items } = await dynamoDbClient.scan(getDetailsHrParams).promise();
 
         if (Items) {
             return Items
         } else {
-            return 
+            return
         }
     } catch (error) {
         console.log(error);
@@ -54,9 +54,9 @@ const approvalReimbursement = async (params) => {
         const approveItems = params.map(async (item) => {
             await dynamoDbClient.update(item).promise();
         });
-        
-        await Promise.all(approveItems); 
-        if (approveItems != 0 ) {
+
+        await Promise.all(approveItems);
+        if (approveItems != 0) {
             return 1
         } else {
             return 0
@@ -66,10 +66,37 @@ const approvalReimbursement = async (params) => {
     }
 }
 
+const getEmployeeNum = async (params) => {
+    try {
+        const { Items } = await dynamoDbClient.scan(params).promise();
+        if (Items) {
+            return Items
+        } else {
+            return
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+const getListReimbursementByEmployee = async (params) => {
+    try {
+        const { Item } = await dynamoDbClient.get(params).promise();
+        if (Item) {
+            return Item
+        } else {
+            return
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
 
 module.exports = {
     getReimbursementByCutOff,
     approvalReimbursement,
     getReimbursement,
-    getDetailsHr
+    getDetailsHr,
+    getEmployeeNum,
+    getListReimbursementByEmployee
 }

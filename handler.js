@@ -51,8 +51,8 @@ app.get("/flexpoints/calculator", loginController.authenticateToken, flexPointsC
 // // ----------------------------HR------------------------------
 
 // John
-// // Search a reimbursement collection via employee details
-// app.get("/reimbursement/search", loginController.authenticateToken, reimburseController.searchReimbursement)
+// Search a reimbursement collection via employee details
+app.get("/hr/reimbursement/search/asd", loginController.authenticateToken, reimburseController.searchReimbursement)
 
 // alex
 // Reject a specific reimbursement collection
