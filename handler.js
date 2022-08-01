@@ -1,6 +1,7 @@
 const express = require("express")
 const serverless = require('serverless-http')
 const loginController = require("./controllers/loginController")
+const logoutController = require("./controllers/logoutController")
 const reimburseController = require("./controllers/reimburseController")
 const flexPointsController = require('./controllers/flexPointsController')
 const printController = require('./controllers/printController')
@@ -11,10 +12,11 @@ app.use(express.json());
 
 
 // -----------------------ALL PERSONNEL----------------------
-// justyne logout
 app.post("/login", loginController.login)
 app.get("/categories", loginController.authenticateToken, reimburseController.viewCategories)
 
+// justyne logout
+app.post("/logout", loginController.authenticateToken, logoutController.logout)
 // // -------------------------EMPLOYEES-------------------------
 
 // alex
