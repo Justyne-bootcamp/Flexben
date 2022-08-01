@@ -28,7 +28,7 @@ app.get("/employee/reimbursement/items/:cutoff_id", loginController.authenticate
 
 // charles + all debug
 // Add reimbursement item, automatically creates a reimbursement collection if not made
-app.post("/reimbursement/item/add", loginController.authenticateToken, reimburseController.addReimbursement)
+app.post("/employee/reimbursement/item/add", loginController.authenticateToken, reimburseController.addReimbursement)
 
 // Justyne
 // // Delete reimbursement item, amount automatically decreases accordingly
