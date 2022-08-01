@@ -19,7 +19,7 @@ provider:
     SECRET_KEY: oij(*&H(noim9p7t(Holkkppo)))
     MIN_REIMBURSABLE_AMOUNT: 500
     TAX_RATE: 0.12
-
+    BUCKET_NAME: awsnodejstraining
 plugins:
   - serverless-offline
 

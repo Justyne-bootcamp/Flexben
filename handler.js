@@ -3,7 +3,7 @@ const serverless = require('serverless-http')
 const loginController = require("./controllers/loginController")
 const reimburseController = require("./controllers/reimburseController")
 const flexPointsController = require('./controllers/flexPointsController')
-const printService = require('./services/printService')
+const printController = require('./controllers/printController')
 
 const app = express();
 
@@ -19,6 +19,10 @@ app.get("/categories", loginController.authenticateToken, reimburseController.vi
 
 // alex
 // // Get all reimbursement collection
+// Justyne
+// // Download a specific reimbursement collection
+app.get("/employee/reimbursement/download", loginController.authenticateToken, printController.downloadReimbursement)
+
 app.get("/employee/reimbursement/:year", loginController.authenticateToken, reimburseController.getReimbursement)
 app.get("/employee/reimbursement", loginController.authenticateToken, reimburseController.getReimbursement)
 
@@ -32,7 +36,7 @@ app.post("/employee/reimbursement/item/add", loginController.authenticateToken, 
 
 // Justyne
 // // Delete reimbursement item, amount automatically decreases accordingly
-// app.delete("/reimbursement/item/remove/:item_id", loginController.authenticateToken, reimburseController.removeReimbursement)
+app.delete("/employee/reimbursement/item/remove/:orNumber", loginController.authenticateToken, reimburseController.removeReimbursement)
 
 // John
 // // Submit a specific reimbursement collection
@@ -41,10 +45,6 @@ app.post("/employee/reimbursement/item/add", loginController.authenticateToken, 
 // charles
 // Calculate flex points
 app.get("/flexpoints/calculator", loginController.authenticateToken, flexPointsController.calculateFlexPoints)
-
-// Justyne
-// // Download a specific reimbursement collection
-// app.get("/reimbursement/download/:reimbursement_id", loginController.authenticateToken, printService.downloadReimbursement)
 
 // // ----------------------------HR------------------------------
 

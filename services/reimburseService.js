@@ -75,6 +75,23 @@ const reimbursementList = async (params) => {
     }
 }
 
+//Justyne
+const getReimbursementItem = async (params) => {
+    try {
+        const { Item } = await dynamoDbClient.get(params).promise();
+        return Item;
+    } catch (error) {
+        console.log(error);
+    }
+}
+const deleteReimbursementItem = async (params) => {
+    try {
+        const { Item } = await dynamoDbClient.delete(params).promise();
+        return Item;
+    } catch (error) {
+        console.log(error);
+    }
+}
 // const getCategory = async (params) => {
 //     try {
 //         const { Item } = await dynamoDbClient.get(params).promise();
@@ -237,6 +254,8 @@ module.exports = {
     addReimbursement,
     getSum,
     reimbursementList,
-    getReimbursement
+    getReimbursement,
+    getReimbursementItem,
+    deleteReimbursementItem
     // getCategory
 }
