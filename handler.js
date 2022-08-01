@@ -65,8 +65,8 @@ app.post("/hr/reimbursement/approve/:employeeNumber", loginController.authentica
 app.get("/hr/reimbursement/:year/:cutOffCycle", loginController.authenticateToken, reimburseController.getReimbursementByCutOff)
 
 // John
-// // Get all items from a specific reimbursement collection in a cut off
-// app.get("/reimbursement/:cutoff_id/:reimbursement_id", loginController.authenticateToken, reimburseController.getReimbursementFull)
+// Get all items from a specific reimbursement collection in a cut off
+app.get("/hr/reimbursement/:year/:cutOffCycle/:employeeNumber", loginController.authenticateToken, reimburseController.getDetailsHr)
 
 app.listen(5000, () => {  
     console.log('App is running...');
