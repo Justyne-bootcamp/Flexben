@@ -472,24 +472,36 @@ const searchReimbursement = async (req, res) => {
 
     let employeeDetails = {
         "employeeNumber": req.query.employeeNumber ? req.query.employeeNumber : "",
-        "firstName": req.query.firstName ? req.query.firstName : "",
-        "lastName": req.query.lastName ? req.query.lastName : "",
+        "firstName": req.query.firstName ? (req.query.firstName).toUpperCase() : "",
+        "lastName": req.query.lastName ? (req.query.lastName).toUpperCase() : "",
         "cutOffCycle": req.params.cutOffCycle,
         "year": req.params.year
     }
+    console.log(employeeDetails)
 
     const cutOff = await loginController.exportLatestCutOffs()
 
     const year = employeeDetails.year || cutOff.year
     const cutOffCycle = employeeDetails.cutOffCycle || cutOff.cutOffCycle
 
+    let expressionAttrObj = {
+        ':firstName': employeeDetails.firstName,
+        ':lastName': employeeDetails.lastName
+    }
+    let nameTempFilter = 'contains (firstName, :firstName) and contains (lastName, :lastName)'
+    if (employeeDetails.employeeNumber != "") {
+        nameTempFilter += ' and employeeNumber =:employeeNumber'
+        expressionAttrObj[':employeeNumber'] = employeeDetails.employeeNumber
+    }
+
 
     var params = {
         TableName: USERS_TABLE,
-        ExpressionAttributeValues: {
-            ':firstName': 'Jan'
-        },
-        FilterExpression: 'contains (firstName, :firstName)',
+        ExpressionAttributeValues:
+            expressionAttrObj
+
+        ,
+        FilterExpression: nameTempFilter,
 
 
     };
@@ -516,7 +528,7 @@ const searchReimbursement = async (req, res) => {
         searchReimbursementResult.push(await reimburseHrService.getListReimbursementByEmployee(item))
     }
 
-    res.status(200).send(searchReimbursementResult)
+    res.status(200).send(searchReimbursementResult.length == 0 ? "No employee/s found" : searchReimbursementResult);
 }
 
 module.exports = {
