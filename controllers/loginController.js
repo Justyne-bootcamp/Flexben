@@ -70,12 +70,27 @@ const authenticateToken = (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1]
     // 401 Status: Theres no token
     if (token == null) res.sendStatus(401)
+
     else {
         jwt.verify(token, SECRET_KEY, async (err, user) => {
             // 403 Status: You have an invalid token
             if (err) res.sendStatus(403)
             else {
                 req.user = user
+
+                const getUserParams = {
+                    TableName: USERS_TABLE,
+                    Key: {
+                        employeeId: user.email
+                    }
+                }
+                const userAccount = await loginService.login(getUserParams);
+
+                if(userAccount.tokenStatus == 'inactive' || token != userAccount.accessToken){
+                    res.send(401);
+                    return;
+                }
+
                 // Populates/initializes categoryList
                 if (categoryList.length == 0) {
                     const categoryListParams = {
