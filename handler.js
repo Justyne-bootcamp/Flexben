@@ -36,7 +36,7 @@ app.post("/employee/reimbursement/item/add", loginController.authenticateToken, 
 
 // John
 // // Submit a specific reimbursement collection
-// app.post("/reimbursement/submit/:reimbursement_id", loginController.authenticateToken, reimburseController.submitReimbursement)
+app.post("/employee/reimbursement/submit", loginController.authenticateToken, reimburseController.submitReimbursement)
 
 // charles
 // Calculate flex points
@@ -50,7 +50,7 @@ app.get("/flexpoints/calculator", loginController.authenticateToken, flexPointsC
 
 // John
 // // Search a reimbursement collection via employee details
-// app.get("/reimbursement/search", loginController.authenticateToken, reimburseController.searchReimbursement)
+app.get("/reimbursement/search", loginController.authenticateToken, reimburseController.searchReimbursement)
 
 // alex
 // Reject a specific reimbursement collection

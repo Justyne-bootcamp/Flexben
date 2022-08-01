@@ -66,10 +66,42 @@ const approvalReimbursement = async (params) => {
     }
 }
 
+const getEmployeeNum = async (params) => {
+    try {
+        const { Items } = await dynamoDbClient.scan(params).promise();
+        if (Items) {
+            return Items
+        } else {
+            return 
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+const getListReimbursementByEmployee = async (params) => {
+    try {
+        let result = params.map(item => {
+            const { Item } = await dynamoDbClient.get(item).promise();
+            return Item
+    })
+        // const { Item } = await dynamoDbClient.get(params).promise();
+        if (result) {
+            return result
+        } else {
+            return 
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 
 module.exports = {
     getReimbursementByCutOff,
     approvalReimbursement,
     getReimbursement,
-    getDetailsHr
+    getDetailsHr,
+    getEmployeeNum,
+    getListReimbursementByEmployee
 }
