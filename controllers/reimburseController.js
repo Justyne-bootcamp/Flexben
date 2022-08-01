@@ -334,6 +334,48 @@ const getDateToday = () => {
     return today
 }
 
+//Justyne
+const removeReimbursement = async (req, res) => {
+    if (req.user.role != 'employee') {
+        res.status(400).send("This function is only for employees.")
+        return
+    }
+    
+    const cutOff = await loginController.exportLatestCutOffs();
+    
+    let getReimbursementParams = {
+        TableName: TRANSACTIONS_TABLE,
+        Key: {
+            PK:  req.user.employeeNumber + '#' + cutOff.year + "#" + cutOff.cutOffCycle,
+            SK: 'ITEM#' + req.params.orNumber
+        }
+    }
+    let reimbursementItem = await reimburseService.getReimbursementItem(getReimbursementParams);
+    
+    if(reimbursementItem){
+        let orNumber = 'ITEM#' + req.params.orNumber;
+        console.log(orNumber);
+
+        if(reimbursementItem.currentStatus == 'draft'){
+            let deleteReimbursementParams = {
+                TableName: TRANSACTIONS_TABLE,
+                Key: {
+                    PK:  req.user.employeeNumber + '#' + cutOff.year + "#" + cutOff.cutOffCycle,
+                    SK: 'ITEM#' + req.params.orNumber
+                }
+            }
+            let item = await reimburseService.deleteReimbursementItem(deleteReimbursementParams);
+        
+            res.status(200).send("Reimbursement deleted.");
+        }
+        else{
+            res.status(400).send("Reimbursement item does not exist or has been submitted/approved.");
+        }
+    }
+    else{
+        res.status(400).send("Reimbursement item does not exist");
+    }
+}
 
 module.exports = {
     addReimbursement,
@@ -343,11 +385,11 @@ module.exports = {
     reimbursementList,
     approveReimbursement,
     rejectReimbursement,
-    getDetailsHr
+    getDetailsHr,
     // getReimbursement,
     // getReimbursementFull,
     // reimbursementList,
-    // removeReimbursement,
+    removeReimbursement
     // submitReimbursement,
     // searchReimbursement,
     // approveReimbursement,

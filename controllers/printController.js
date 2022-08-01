@@ -1,4 +1,3 @@
-const printService = require('../services/printService')
 const loginController = require('../controllers/loginController')
 const reimburseService = require('../services/reimburseService')
 const S3 = require('aws-sdk/clients/s3')
@@ -9,6 +8,7 @@ const BUCKET_NAME = process.env.BUCKET_NAME
 const downloadReimbursement = async (req, res) => {
     //get reimbursement of employee
 
+    console.log("downloading");
     const cutOff = await loginController.exportLatestCutOffs()
 
     const reimbursementParams = {
@@ -39,8 +39,6 @@ const downloadReimbursement = async (req, res) => {
     
     let filename = `${req.user.employeeNumber}_${data[employeeDataIndex2].transactionNumber}.txt`;
     let key = `group2/files/${filename}`;
-
-    console.log(filename);
 
     await uploadFile(BUCKET_NAME, key, content);
     res.attachment(key);
@@ -88,7 +86,7 @@ function getTotalAmount(data){
 function getEmployeeData(data1, data2, totalAmount){
     return `
 Employee Name:	${data1.lastName}, ${data1.firstName}
-Employee Number:	${data1.emplyoeeNumber}
+Employee Number:	${data1.employeeNumber}
 Date Submitted:		${data2.dateSubmitted}
 Transaction Number: ${data2.transactionNumber}
 Amount:	Php ${totalAmount}
