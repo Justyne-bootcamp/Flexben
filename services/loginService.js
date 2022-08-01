@@ -14,6 +14,19 @@ const login = async (params) => {
     }
 }
 
+const updateToken = async (params) => {
+    try {
+        const  Item  = await dynamoDbClient.update(params).promise();
+        if (Item) {
+            return Item
+        } else {
+            return 
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 const getCategories = async (params) => {
     try {
         const { Items } = await dynamoDbClient.scan(params).promise();
@@ -44,5 +57,6 @@ const getCutOffs = async (params) => {
 module.exports = {
     login,
     getCategories,
-    getCutOffs
+    getCutOffs,
+    updateToken
 }
