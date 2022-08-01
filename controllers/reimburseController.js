@@ -216,24 +216,40 @@ const approveReimbursement = async (req, res) => {
     }
     const cutOff = await loginController.exportLatestCutOffs()
     console.log(req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle)
-    const approveParams = {
+    const searchParams = {
         TableName: TRANSACTIONS_TABLE,
-        Key: {
-            'PK': req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle,
-            'SK': "CUTOFF#" + cutOff.cutOffCycle,
-        },
-        ConditionExpression: "currentStatus = :currentStatus",
-        UpdateExpression: "set currentStatus = :newStatus, dateUpdated = :dateUpdated",
+        FilterExpression: 'PK = :pk AND SK BETWEEN:skCutoff AND :skUser AND currentStatus = :currentStatus',
         ExpressionAttributeValues: {
-            ':newStatus': "approved",
-            ':currentStatus': "submitted",
-            ":dateUpdated": getDateToday()
+            ":currentStatus": "submitted",
+            ':skCutoff': "CUTOFF",
+            ':skUser': "USER",
+            ':pk': req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle,
         },
-        ReturnValues: "UPDATED_NEW"
     };
-    let approval = await reimburseHrService.approvalReimbursement(approveParams)
-    console.log("approval" +approval);
-    res.status(200).send(approval ? "Reimbursement approved." : "Reimbursement not found, not yet submitted, or has been approved/rejected.")
+    let reimbursementDetails = await reimburseHrService.getReimbursement(searchParams)
+    if (reimbursementDetails == 0) {
+        res.status(400).send("Reimbursement not found, not yet submitted, or has been approved/rejected.")
+        return
+    }
+    const approvalParams = [];
+    reimbursementDetails.forEach(item => {
+        approvalParams.push(
+            {
+                TableName: TRANSACTIONS_TABLE,
+                Key: {
+                    'PK': item.PK,
+                    'SK': item.SK
+                },
+                UpdateExpression: "set currentStatus = :newStatus",
+                ExpressionAttributeValues: {
+                    ":newStatus": "approved",
+                },
+            }
+        )
+    })
+    console.log(approvalParams)
+    await reimburseHrService.approvalReimbursement(approvalParams)
+    res.status(200).send("Reimbursement approved.")
 }
 
 // alex

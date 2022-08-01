@@ -34,13 +34,32 @@ const getDetailsHr = async (getDetailsHrParams) => {
 
 
 // alex
+const getReimbursement = async (params) => {
+    try {
+        const { Items } = await dynamoDbClient.scan(params).promise();
+        console.log("items" + Items)
+        if (Items != 0) {
+            console.log("return items" + Items)
+            return Items
+        } else {
+            return 0
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 const approvalReimbursement = async (params) => {
     try {
-        const { Item } = await dynamoDbClient.update(params).promise();
-        if (Item) {
-            return 0
-        } else {
+        const approveItems = params.map(async (item) => {
+            await dynamoDbClient.update(item).promise();
+        });
+        
+        await Promise.all(approveItems); 
+        if (approveItems != 0 ) {
             return 1
+        } else {
+            return 0
         }
     } catch (error) {
         console.log(error);
@@ -51,5 +70,6 @@ const approvalReimbursement = async (params) => {
 module.exports = {
     getReimbursementByCutOff,
     approvalReimbursement,
+    getReimbursement,
     getDetailsHr
 }
