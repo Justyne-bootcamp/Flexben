@@ -7,14 +7,6 @@ const getReimbursementByCutOff = async (getReimbursementByCutOffParams) => {
         const {Items}  = await dynamoDbClient.scan(getReimbursementByCutOffParams).promise();  
 
         if (Items) {
-            // // group objects based on their PK
-            // const groups = Items.reduce((groups, item) => {
-            //     const group = (groups[item.PK] || []);
-            //     group.push(item);
-            //     groups[item.PK] = group;
-            //     return groups;
-            //   }, {});
-
             return Items
         } else {
             return 
@@ -31,14 +23,6 @@ const getDetailsHr = async (getDetailsHrParams) => {
         const {Items}  = await dynamoDbClient.scan(getDetailsHrParams).promise();  
 
         if (Items) {
-            // // group objects based on their PK
-            // const groups = Items.reduce((groups, item) => {
-            //     const group = (groups[item.PK] || []);
-            //     group.push(item);
-            //     groups[item.PK] = group;
-            //     return groups;
-            //   }, {});
-
             return Items
         } else {
             return 
