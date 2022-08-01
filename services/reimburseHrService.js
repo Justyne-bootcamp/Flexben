@@ -7,15 +7,15 @@ const getReimbursementByCutOff = async (getReimbursementByCutOffParams) => {
         const {Items}  = await dynamoDbClient.scan(getReimbursementByCutOffParams).promise();  
 
         if (Items) {
-            // group objects based on their PK
-            const groups = Items.reduce((groups, item) => {
-                const group = (groups[item.PK] || []);
-                group.push(item);
-                groups[item.PK] = group;
-                return groups;
-              }, {});
+            // // group objects based on their PK
+            // const groups = Items.reduce((groups, item) => {
+            //     const group = (groups[item.PK] || []);
+            //     group.push(item);
+            //     groups[item.PK] = group;
+            //     return groups;
+            //   }, {});
 
-            return groups
+            return Items
         } else {
             return 
         }
@@ -23,6 +23,31 @@ const getReimbursementByCutOff = async (getReimbursementByCutOffParams) => {
         console.log(error);
     }
 }
+
+// charles
+
+const getDetailsHr = async (getDetailsHrParams) => {
+    try {
+        const {Items}  = await dynamoDbClient.scan(getDetailsHrParams).promise();  
+
+        if (Items) {
+            // // group objects based on their PK
+            // const groups = Items.reduce((groups, item) => {
+            //     const group = (groups[item.PK] || []);
+            //     group.push(item);
+            //     groups[item.PK] = group;
+            //     return groups;
+            //   }, {});
+
+            return Items
+        } else {
+            return 
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 
 // alex
 const approvalReimbursement = async (params) => {
@@ -41,5 +66,6 @@ const approvalReimbursement = async (params) => {
 
 module.exports = {
     getReimbursementByCutOff,
-    approvalReimbursement
+    approvalReimbursement,
+    getDetailsHr
 }

@@ -208,28 +208,6 @@ const reimbursementList = async (req, res) => {
     res.status(200).send(reimbursementItems.length == 0 ? "Current user does not own the collection or collection does not exist" : reimbursementItems)
 }
 
-// charles
-const getReimbursementByCutOff = async (req, res) => {
-    // role validation
-    if (req.user.role != 'hr') {
-        res.status(400).send("This function is only for hr personnel.")
-        return
-    }
-
-    const getReimbursementByCutOffParams = {
-        TableName: TRANSACTIONS_TABLE,
-        FilterExpression: 'contains(PK, :pk) AND currentStatus<>:currentStatus',
-        ExpressionAttributeValues: {
-            ':pk': req.params.year + "#" + req.params.cutOffCycle,
-            ':currentStatus': 'draft'
-        }
-    }
-
-    let getReimbursementByCutOffResult = await reimburseHrService.getReimbursementByCutOff(getReimbursementByCutOffParams)
-
-    res.json(getReimbursementByCutOffResult)
-}
-
 // alex
 const approveReimbursement = async (req, res) => {
     if (req.user.role != 'hr') {
@@ -286,77 +264,49 @@ const rejectReimbursement = async (req, res) => {
     res.status(200).send(rejection ? "Reimbursement rejected." : "Reimbursement not found, not yet submitted, or has been approved/rejected.")
 }
 
-// const removeReimbursement = async (req, res) => {
-//     if (req.user.role != 'employee') {
-//         res.status(400).send("This function is only for employees.")
-//         return
-//     }
-//     let reimbursementItems = JSON.parse(JSON.stringify(await reimburseService.reimbursementList(req.user.employee_id)))
-//     let ableToDelete = false
-//     reimbursementItems.forEach(item => {
-//         if (item.flex_reimbursement_detail_id == req.params.item_id && item.status.toLowerCase() == 'draft') ableToDelete = true
-//     })
+// charles
+const getReimbursementByCutOff = async (req, res) => {
+    // role validation
+    if (req.user.role != 'hr') {
+        res.status(400).send("This function is only for hr personnel.")
+        return
+    }
 
-//     if (ableToDelete) {
-//         await reimburseService.removeReimbursement(req.params.item_id, getDateToday())
-//         res.status(200).send("Reimbursement deleted.")
-//     }
-//     else {
-//         res.status(400).send("Reimbursement item does not exist or has been submitted/approved.")
-//     }
+    const getReimbursementByCutOffParams = {
+        TableName: TRANSACTIONS_TABLE,
+        FilterExpression: 'contains(PK, :pk) AND currentStatus<>:currentStatus AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: {
+            ':pk': req.params.year + "#" + req.params.cutOffCycle,
+            ':currentStatus': 'draft',
+            ':sk': "CUTOFF#"
+        }
+    }
 
-// }
+    let getReimbursementByCutOffResult = await reimburseHrService.getReimbursementByCutOff(getReimbursementByCutOffParams)
 
-// const submitReimbursement = async (req, res) => {
-//     if (req.user.role != 'employee') {
-//         res.status(400).send("This function is only for employees.")
-//         return
-//     }
-//     let reimbursementCollection = JSON.parse(JSON.stringify(await reimburseService.getReimbursement(req.user.employee_id)))
-//     let ableToSubmit = false
-//     let cap_amount = JSON.parse(await reimburseService.getLatestCutoffCycle()).cut_off_cap_amount
+    res.send(getReimbursementByCutOffResult.length != 0 ? getReimbursementByCutOffResult : "No reimbursements found.")
+}
 
-//     reimbursementCollection.forEach(item => {
-//         if (item.flex_reimbursement_id == req.params.reimbursement_id
-//             && item.status.toLowerCase() == 'draft'
-//             && item.total_reimbursement_amount <= cap_amount) {
-//             ableToSubmit = true
-//         }
-//     })
+const getDetailsHr = async (req, res) => {
+    // role validation
+    if (req.user.role != 'hr') {
+        res.status(400).send("This function is only for hr personnel.")
+        return
+    }
 
-//     if (ableToSubmit) {
-//         await reimburseService.submitReimbursement(req.user.employee_id, req.params.reimbursement_id, getDateToday())
-//         res.status(200).send("Reimbursement submitted.")
-//     }
-//     else {
-//         res.status(400).send("Reimbursement item does not exist, has been submitted/approved, or has exceeded the maximum cut off cap of " + JSON.parse(await reimburseService.getLatestCutoffCycle()).cut_off_cap_amount + ".")
-//     }
-// }
+    const getDetailsHrParams = {
+        TableName: TRANSACTIONS_TABLE,
+        FilterExpression: 'contains(PK, :pk) AND currentStatus<>:currentStatus',
+        ExpressionAttributeValues: {
+            ':pk': req.params.employeeNumber + "#" + req.params.year + "#" + req.params.cutOffCycle,
+            ':currentStatus': 'draft'
+        }
+    }
 
-// const searchReimbursement = async (req, res) => {
-//     if (req.user.role != 'hr') {
-//         res.status(400).send("This function is only for HR personnel.")
-//         return
-//     }
-//     let search_info = {
-//         "employee_id": req.query.employee_id ? req.query.employee_id : "",
-//         "firstname": req.query.firstname ? req.query.firstname : "",
-//         "lastname": req.query.lastname ? req.query.lastname : ""
-//     }
-//     let search_result = JSON.parse(await reimburseHrService.searchEmployee(search_info))
-//     console.log(search_result[0].employee_id);
-//     if (search_result.length == 0) {
-//         res.status(200).send("No employee found.")
-//     }
-//     else if (search_result.length != 1) {
-//         res.status(200).send("Parsed more than 1 employee, please refine search query.")
-//     }
-//     else {
-//         let search_reimbursement = await reimburseHrService.searchReimbursement(search_result[0].employee_id)
-//         res.status(200).send(search_reimbursement ? search_reimbursement : "No submitted reimbursement found.")
-//     }
-// }
+    let getDetailsHrResult = await reimburseHrService.getDetailsHr(getDetailsHrParams)
 
+    res.send(getDetailsHrResult.length != 0 ? getDetailsHrResult : "No reimbursements found.")
+}
 
 const getDateToday = () => {
     let today = new Date();
@@ -376,7 +326,8 @@ module.exports = {
     getReimbursement,
     reimbursementList,
     approveReimbursement,
-    rejectReimbursement
+    rejectReimbursement,
+    getDetailsHr
     // getReimbursement,
     // getReimbursementFull,
     // reimbursementList,
