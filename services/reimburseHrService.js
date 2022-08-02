@@ -32,6 +32,19 @@ const getDetailsHr = async (getDetailsHrParams) => {
     }
 }
 
+const getEmployeeName = async (getEmployeeName) => {
+    try {
+        const {Items} = await dynamoDbClient.scan(getEmployeeName).promise();
+        console.log(Items);
+        if (Items) {
+            return Items
+        } else {
+            return
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
 
 // alex
 const getReimbursement = async (params) => {
@@ -98,5 +111,6 @@ module.exports = {
     getReimbursement,
     getDetailsHr,
     getEmployeeNum,
-    getListReimbursementByEmployee
+    getListReimbursementByEmployee,
+    getEmployeeName
 }
