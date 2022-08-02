@@ -1,4 +1,4 @@
-service: awsnodetraining-chang-express
+service: awsnodetraining-group2
 frameworkVersion: '3'
 
 provider:
@@ -10,7 +10,7 @@ provider:
   lambdaHashingVersion: 20201221
   deploymentBucket:
     name: 'awsnodejstraining'
-  memorySize: 128 # mb
+  memorySize: 256 # mb
   environment:
     USERS_TABLE: chang_employees
     TRANSACTIONS_TABLE: chang_test_transac_table
