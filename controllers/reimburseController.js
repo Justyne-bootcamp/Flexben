@@ -1,6 +1,7 @@
 const reimburseService = require('../services/reimburseService')
 const reimburseHrService = require('../services/reimburseHrService')
 const loginController = require('../controllers/loginController')
+const {v4 : uuidv4} = require('uuid')
 
 const MIN_REIMBURSABLE_AMOUNT = process.env.MIN_REIMBURSABLE_AMOUNT
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE
@@ -448,10 +449,11 @@ const submitReimbursement = async (req, res) => {
                     'PK': item.PK,
                     'SK': item.SK
                 },
-                UpdateExpression: "set currentStatus = :newStatus, dateUpdated = :dateUpdated, dateSubmitted = :dateUpdated",
+                UpdateExpression: "set currentStatus = :newStatus, dateUpdated = :dateUpdated, dateSubmitted = :dateUpdated, transactionNumber = :transNum",
                 ExpressionAttributeValues: {
                     ":dateUpdated": getDateToday(),
                     ":newStatus": "submitted",
+                    ":transNum": req.user.companyCode + "-" + year + cutOffCycle + "-" + getDateToday().split('/').join('')  + "-" + transactionNum.split('-').join('')
                 },
             }
         )
