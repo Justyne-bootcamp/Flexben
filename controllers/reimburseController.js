@@ -23,6 +23,7 @@ const addReimbursement = async (req, res) => {
         "orNumber": null,
         "nameOfEstablishment": null,
         "tinOfEstablishment": null,
+        "dateOfPurchase": null,
         "amount": null,
         "categoryId": null,
         "dateAdded": getDateToday()
@@ -99,6 +100,7 @@ const addReimbursement = async (req, res) => {
                     tinOfEstablishment: reimbursementItemDetails.tinOfEstablishment,
                     amount: reimbursementItemDetails.amount,
                     dateAdded: reimbursementItemDetails.dateAdded,
+                    dateOfPurchase: reimbursementItemDetails.dateOfPurchase,
                     categoryDetails: JSON.stringify(categoryDetails),
                     currentStatus: 'draft',
                 }
