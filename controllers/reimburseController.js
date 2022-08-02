@@ -25,7 +25,6 @@ const addReimbursement = async (req, res) => {
         "tinOfEstablishment": null,
         "amount": null,
         "categoryId": null,
-        "currentStatus": "draft",
         "dateAdded": getDateToday()
     }
 
@@ -100,7 +99,8 @@ const addReimbursement = async (req, res) => {
                     tinOfEstablishment: reimbursementItemDetails.tinOfEstablishment,
                     amount: reimbursementItemDetails.amount,
                     dateAdded: reimbursementItemDetails.dateAdded,
-                    categoryDetails: JSON.stringify(categoryDetails)
+                    categoryDetails: JSON.stringify(categoryDetails),
+                    currentStatus: 'draft',
                 }
             }
         }
@@ -115,7 +115,8 @@ const addReimbursement = async (req, res) => {
                     companyCode: req.user.companyCode,
                     employeeNumber: req.user.employeeNumber,
                     firstName: req.user.firstName,
-                    lastName: req.user.lastName
+                    lastName: req.user.lastName,
+                    currentStatus: 'draft',
                 }
             }
         })
@@ -139,7 +140,7 @@ const addReimbursement = async (req, res) => {
         }
     }
     console.log(addReimbursementParams);
-    const addReimbursementResult = await reimburseService.addReimbursement(addReimbursementParams)
+    await reimburseService.addReimbursement(addReimbursementParams)
 
     // take sum of amount for a transaction
     const getSumParams = {
