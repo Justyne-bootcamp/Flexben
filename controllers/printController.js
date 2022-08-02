@@ -8,6 +8,11 @@ const BUCKET_NAME = process.env.BUCKET_NAME
 const downloadReimbursement = async (req, res) => {
     //get reimbursement of employee
 
+    if (req.user.role != 'employee') {
+        res.status(400).send("This function is only for employees.")
+        return
+    }
+
     console.log("downloading");
     const cutOff = await loginController.exportLatestCutOffs()
 
@@ -107,7 +112,7 @@ function getDetails(data){
 details += `
 CATEGORY: ${getCategoryName(element.categoryDetails)}
 Item # ${itemCounter}
-Date: ${element.date}
+Date: ${element.dateOfPurchase}
 OR Number: ${element.SK.replace('ITEM#', '')}
 Name of Establishment: ${element.nameOfEstablishment}
 TIN of Establishment: ${element.tinOfEstablishment}
