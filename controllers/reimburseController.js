@@ -561,8 +561,31 @@ const searchReimbursement = async (req, res) => {
         searchReimbursementResult.push(await reimburseHrService.getListReimbursementByEmployee(item))
     }
 
-    res.status(200).send(searchReimbursementResult.length == 0 ? "No employee/s found" : searchReimbursementResult);
+const reimbursementDetailsParams = [];
+
+userInfo.forEach(item => {
+    reimbursementDetailsParams.push({
+    TableName: TRANSACTIONS_TABLE,
+    FilterExpression: 'contains(PK, :pk) AND contains(SK, :sk) AND currentStatus<>:currentStatus',
+    ExpressionAttributeValues: {
+        ':pk': item.employeeNumber + "#" + year + "#" + cutOffCycle,
+        ':sk' : 'ITEM#',
+        ':currentStatus': 'draft'
+    }
+})
+})
+
+let getDetailsReimbursementResult = [];
+
+for (const item of reimbursementDetailsParams) {
+    getDetailsReimbursementResult.push(await reimburseHrService.getDetailsHr(item))
 }
+
+let reimbursements = [searchReimbursementResult, getDetailsReimbursementResult];
+
+res.status(200).send(searchReimbursementResult.length == 0 ? "No employee/s found" : reimbursements);
+}
+
 
 module.exports = {
     addReimbursement,
