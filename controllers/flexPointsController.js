@@ -4,8 +4,8 @@ const calculateFlexPoints = (req, res) => {
         return
     }
 
-    let monthlyRate = req.query.monthly_rate
-    let flexCredits = req.query.flex_credits
+    let monthlyRate = req.query.monthlyRate
+    let flexCredits = req.query.flexCredits
     let taxRate = process.env.TAX_RATE
 
     if (!monthlyRate || !flexCredits) {
