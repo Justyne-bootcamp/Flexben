@@ -21,8 +21,8 @@ const calculateFlexPoints = (req, res) => {
     }
 
     res.status(200).send({
-        "monthly_rate": monthlyRate,
-        "flex_credits": flexCredits,
+        "monthlyRate": monthlyRate,
+        "flexCredits": flexCredits,
         "flexPoints": flexPoints.toFixed(2)
     })
 

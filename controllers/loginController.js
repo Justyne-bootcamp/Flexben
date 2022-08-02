@@ -96,14 +96,15 @@ const authenticateToken = (req, res, next) => {
                     const categoryListParams = {
                         TableName: CATEGORIES_TABLE,
                     }
-                    categoryList = await loginService.getCategories(categoryListParams)
+                    categoryList = await loginService.dbScan(categoryListParams)
                 }
                 if (cutOffList.length == 0) {
                     const cutOffListParams = {
                         TableName: CUTTOFFS_TABLE,
                         ScanIndexForward: false,
                     }
-                    cutOffList = await loginService.getCutOffs(cutOffListParams)
+                    cutOffList = await loginService.dbScan(cutOffListParams)
+                    cutOffList.sort((a, b) => b.year.localeCompare(a.year) || b.cutOffCycle - a.cutOffCycle)
                 }
                 next()
             }

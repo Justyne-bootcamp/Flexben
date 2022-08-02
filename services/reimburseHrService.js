@@ -1,7 +1,21 @@
 const AWS = require('aws-sdk')
 const dynamoDbClient = new AWS.DynamoDB.DocumentClient();
 
-// charles
+const dbScan = async (params) => {
+    try {
+        const { Items } = await dynamoDbClient.scan(params).promise();
+
+        if (Items) {
+            return Items
+        } else {
+            return
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+
 const getReimbursementByCutOff = async (getReimbursementByCutOffParams) => {
     try {
         const { Items } = await dynamoDbClient.scan(getReimbursementByCutOffParams).promise();
@@ -16,43 +30,10 @@ const getReimbursementByCutOff = async (getReimbursementByCutOffParams) => {
     }
 }
 
-// charles
-
-const getDetailsHr = async (getDetailsHrParams) => {
-    try {
-        const { Items } = await dynamoDbClient.scan(getDetailsHrParams).promise();
-
-        if (Items) {
-            return Items
-        } else {
-            return
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-
-const getEmployeeName = async (getEmployeeName) => {
-    try {
-        const {Items} = await dynamoDbClient.scan(getEmployeeName).promise();
-        console.log(Items);
-        if (Items) {
-            return Items
-        } else {
-            return
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-
-// alex
 const getReimbursement = async (params) => {
     try {
         const { Items } = await dynamoDbClient.scan(params).promise();
-        console.log("items" + Items)
         if (Items != 0) {
-            console.log("return items" + Items)
             return Items
         } else {
             return 0
@@ -79,19 +60,6 @@ const approvalReimbursement = async (params) => {
     }
 }
 
-const getEmployeeNum = async (params) => {
-    try {
-        const { Items } = await dynamoDbClient.scan(params).promise();
-        if (Items) {
-            return Items
-        } else {
-            return
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-
 const getListReimbursementByEmployee = async (params) => {
     try {
         const { Item } = await dynamoDbClient.get(params).promise();
@@ -106,11 +74,9 @@ const getListReimbursementByEmployee = async (params) => {
 }
 
 module.exports = {
+    dbScan,
     getReimbursementByCutOff,
     approvalReimbursement,
     getReimbursement,
-    getDetailsHr,
-    getEmployeeNum,
     getListReimbursementByEmployee,
-    getEmployeeName
 }

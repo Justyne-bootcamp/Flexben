@@ -6,14 +6,13 @@ const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE
 const BUCKET_NAME = process.env.BUCKET_NAME
 
 const downloadReimbursement = async (req, res) => {
-    //get reimbursement of employee
+    // get reimbursement of employee
 
     if (req.user.role != 'employee') {
         res.status(400).send("This function is only for employees.")
         return
     }
 
-    console.log("downloading");
     const cutOff = await loginController.exportLatestCutOffs()
 
     const reimbursementParams = {
@@ -23,7 +22,7 @@ const downloadReimbursement = async (req, res) => {
         },
         KeyConditionExpression: 'PK = :pk'
     }
-    const data = await reimburseService.getReimbursement(reimbursementParams);
+    const data = await reimburseService.dbQuery(reimbursementParams);
 
     let employeeDataIndex = data.map((reimbursement) => {
         return reimbursement.SK;
@@ -89,8 +88,7 @@ function getTotalAmount(data){
     return totalAmount;
 }
 function getEmployeeData(data1, data2, totalAmount){
-    return `
-Employee Name:	${data1.lastName}, ${data1.firstName}
+    return `Employee Name:	${data1.lastName}, ${data1.firstName}
 Employee Number:	${data1.employeeNumber}
 Date Submitted:		${data2.dateSubmitted}
 Transaction Number: ${data2.transactionNumber}

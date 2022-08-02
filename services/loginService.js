@@ -27,7 +27,7 @@ const updateToken = async (params) => {
     }
 }
 
-const getCategories = async (params) => {
+const dbScan = async (params) => {
     try {
         const { Items } = await dynamoDbClient.scan(params).promise();
         if (Items) {
@@ -40,23 +40,8 @@ const getCategories = async (params) => {
     }
 }
 
-const getCutOffs = async (params) => {
-    try {
-        const { Items } = await dynamoDbClient.scan(params).promise();
-        if (Items) {
-            // sort-descending by year then by cutoff cycle
-            return Items.sort((a, b) => b.year.localeCompare(a.year) || b.cutOffCycle - a.cutOffCycle)
-        } else {
-            return
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-
 module.exports = {
     login,
-    getCategories,
-    getCutOffs,
+    dbScan,
     updateToken
 }

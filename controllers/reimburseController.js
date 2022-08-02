@@ -12,7 +12,6 @@ const viewCategories = async (req, res) => {
     res.send(categoryList)
 }
 
-// charles
 const addReimbursement = async (req, res) => {
     // role validation
     if (req.user.role != 'employee') {
@@ -90,7 +89,7 @@ const addReimbursement = async (req, res) => {
             ':sk': 'CUTOFF#' + cutOffCycle
         }
     }
-    const checkIfExistingReimbursementResult = await reimburseService.checkIfExistingReimbursement(checkIfExistingReimbursementParams)
+    const checkIfExistingReimbursementResult = await reimburseService.dbQuery(checkIfExistingReimbursementParams)
     if (checkIfExistingReimbursementResult.length == 1 && checkIfExistingReimbursementResult[0].currentStatus != 'draft') {
         res.status(400).send("Unable to add item. Your current reimbursement for the cycle has been submitted already.")
         return
@@ -161,7 +160,12 @@ const addReimbursement = async (req, res) => {
         }
     }
 
-    const totalReimbursementAmount = await reimburseService.getSum(getSumParams)
+    let totalReimbursementAmount = 0
+    const reimbursementAmounts = await reimburseService.dbQuery(getSumParams)
+    reimbursementAmounts.forEach(item => {
+        totalReimbursementAmount = totalReimbursementAmount + item.amount
+    })
+
 
     res.json({
         "maximumReimbursementAmount": cutOffCapAmount,
@@ -170,43 +174,36 @@ const addReimbursement = async (req, res) => {
     })
 }
 
-// alex
 const getReimbursement = async (req, res) => {
+    if (req.user.role != 'employee') {
+        res.status(400).send("This function is only for employees.")
+        return
+    }
     // Employee can view all reimbursements
     const cutOff = await loginController.exportLatestCutOffs()
     const year = req.params.year || cutOff.year
-    if (req.user.role == 'employee' && req.params.cutoff_id == null) {
-        const getReimbursementParams = {
-            TableName: TRANSACTIONS_TABLE,
-            ExpressionAttributeValues: {
-                ':pk': req.user.employeeNumber + "#" + year + "#" + cutOff.cutOffCycle,
-                ':sk': 'CUTOFF'
-            },
-            KeyConditionExpression: 'PK = :pk and begins_with ( SK, :sk)',
-        }
-        let reimbursementCollection = await reimburseService.getReimbursement(getReimbursementParams)
-        res.status(200).send(reimbursementCollection)
+
+    const getReimbursementParams = {
+        TableName: TRANSACTIONS_TABLE,
+        ExpressionAttributeValues: {
+            ':pk': req.user.employeeNumber + "#" + year + "#" + cutOff.cutOffCycle,
+            ':sk': 'CUTOFF'
+        },
+        KeyConditionExpression: 'PK = :pk and begins_with ( SK, :sk)',
     }
-    else if (req.user.role == 'employee' && req.params.cutoff_id != null) {
-        res.status(400).send("This function is only for HR personnel.")
-    }
-    else if (req.user.role == 'hr' && req.params.cutoff_id == null) {
-        res.status(400).send("Please specify a cut-off period.")
-    }
-    else {
-        res.status(400).send("Please login.")
-    }
+    let reimbursementCollection = await reimburseService.dbQuery(getReimbursementParams)
+    res.status(200).send(reimbursementCollection.length != 0? reimbursementCollection : "No reimbursement found.")
 }
 
-// alex
+
 const reimbursementList = async (req, res) => {
     if (req.user.role != 'employee') {
         res.status(400).send("This function is only for employees.")
         return
     }
-    const cutOffCycle = req.params.cutoff_id
+    const cutOffCycle = req.params.cutOffCycle
     const cutOff = await loginController.exportLatestCutOffs()
-    console.log(req.user.employeeNumber + "#" + cutOff.year + "#" + cutOffCycle)
+
     const reimbursementItemParams = {
         TableName: TRANSACTIONS_TABLE,
         ExpressionAttributeValues: {
@@ -215,18 +212,44 @@ const reimbursementList = async (req, res) => {
         },
         KeyConditionExpression: 'PK = :pk and begins_with ( SK, :sk)',
     }
-    let reimbursementItems = await reimburseService.reimbursementList(reimbursementItemParams)
-    res.status(200).send(reimbursementItems.length == 0 ? "Current user does not own the collection or collection does not exist" : reimbursementItems)
+    let reimbursementItems = await reimburseService.dbQuery(reimbursementItemParams)
+
+    const getReimbursementItems = [];
+    reimbursementItems.map(item => {
+        getReimbursementItems.push({
+            "dateOfPurchase": item.dateOfPurchase,
+            "orNumber": item.SK.split("#")[1],
+            "nameOfEstablishment": item.nameOfEstablishment,
+            "tinOfEstablishment": item.tinOfEstablishment,
+            "amount": item.amount,
+            "category": JSON.parse(item.categoryDetails).name
+        })
+    })
+    res.status(200).send(getReimbursementItems.length == 0 ? "Current user does not own the collection or collection does not exist" : getReimbursementItems)
 }
 
-// alex
 const approvalReimbursement = async (req, res) => {
     if (req.user.role != 'hr') {
         res.status(400).send("This function is only for HR personnel")
         return
     }
     const cutOff = await loginController.exportLatestCutOffs()
-    console.log(req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle)
+    
+    let newStatus = ""
+    let approvalStatement = ""
+    if (req.params.action == "approve") {
+        newStatus = "approved"
+        approvalStatement = "Reimbursement approved."
+    }
+    else if (req.params.action == "reject") {
+        newStatus = "rejected"
+        approvalStatement = "Reimbursement rejected."
+    }
+    else {
+        res.status(400).send("Action not accepted.")
+        return
+    }
+
     const searchParams = {
         TableName: TRANSACTIONS_TABLE,
         FilterExpression: 'PK = :pk AND SK BETWEEN:skCutoff AND :skUser AND currentStatus = :currentStatus',
@@ -243,17 +266,7 @@ const approvalReimbursement = async (req, res) => {
         return
     }
 
-    let newStatus = ""
-    let approvalStatement = ""
-    if (req.params.action == "approve") {
-        newStatus = "approved"
-        approvalStatement = "Reimbursement approved."
-    }
-    else if (req.params.action == "reject") {
-        newStatus = "rejected"
-        approvalStatement = "Reimbursement rejected."
-    }
-
+    
     const approvalParams = [];
     reimbursementDetails.forEach(item => {
         approvalParams.push(
@@ -275,7 +288,6 @@ const approvalReimbursement = async (req, res) => {
     res.status(200).send(approvalStatement)
 }
 
-// charles
 const getReimbursementByCutOff = async (req, res) => {
     // role validation
     if (req.user.role != 'hr') {
@@ -293,7 +305,7 @@ const getReimbursementByCutOff = async (req, res) => {
         }
     }
 
-    let getReimbursementByCutOffResult = await reimburseHrService.getReimbursementByCutOff(getReimbursementByCutOffParams)
+    let getReimbursementByCutOffResult = await reimburseHrService.dbScan(getReimbursementByCutOffParams)
 
     for (const item of getReimbursementByCutOffResult) {
         // finding employee name using employee number
@@ -306,7 +318,7 @@ const getReimbursementByCutOff = async (req, res) => {
             ProjectionExpression: "firstName, lastName, employeeNumber",
             TableName: USERS_TABLE
         }
-        let employeeName = (await reimburseHrService.getEmployeeName(getEmployeeName))[0]
+        let employeeName = (await reimburseHrService.dbScan(getEmployeeName))[0]
         item["employeeName"] = employeeName.lastName + ", " + employeeName.firstName
 
         // getting sum of reimbursement items
@@ -318,7 +330,13 @@ const getReimbursementByCutOff = async (req, res) => {
                 ':sk': 'ITEM'
             }
         }
-        const totalReimbursementAmount = await reimburseService.getSum(getSumParams)
+
+        let totalReimbursementAmount = 0
+        const reimbursementAmounts = await reimburseService.dbQuery(getSumParams)
+        reimbursementAmounts.forEach(item => {
+            totalReimbursementAmount = totalReimbursementAmount + item.amount
+        })
+
         item["totalReimbursementAmount"] = totalReimbursementAmount
     }
     getReimbursementByCutOffResult = getReimbursementByCutOffResult.map(item => {
@@ -361,7 +379,7 @@ const getDetailsHr = async (req, res) => {
         }
     }
 
-    let getDetailsHrReturn = await reimburseHrService.getDetailsHr(getDetailsHrParams)
+    let getDetailsHrReturn = await reimburseHrService.dbScan(getDetailsHrParams)
     // destructure object with SK of CUTOFF
     let getDetailsHrReturnCutOff = getDetailsHrReturn.filter(obj => {
         return obj.SK.includes("CUTOFF")
@@ -390,7 +408,7 @@ const getDetailsHr = async (req, res) => {
         ProjectionExpression: "firstName, lastName, employeeNumber",
         TableName: USERS_TABLE
     }
-    let employeeName = (await reimburseHrService.getEmployeeName(getEmployeeName))[0]
+    let employeeName = (await reimburseHrService.dbScan(getEmployeeName))[0]
     // get sum of reimbursement amounts based from PK
     const getSumParams = {
         TableName: TRANSACTIONS_TABLE,
@@ -400,8 +418,11 @@ const getDetailsHr = async (req, res) => {
             ':sk': 'ITEM'
         }
     }
-    const totalReimbursementAmount = await reimburseService.getSum(getSumParams)
-
+    let totalReimbursementAmount = 0
+    const reimbursementAmounts = await reimburseService.dbQuery(getSumParams)
+    reimbursementAmounts.forEach(item => {
+        totalReimbursementAmount = totalReimbursementAmount + item.amount
+    })
     let getDetailsHrResult = {
         "employeeNumber": req.params.employeeNumber,
         "employeeName": employeeName.lastName + ", " + employeeName.firstName,
@@ -446,7 +467,6 @@ function isValidDate(dateString) {
     return day > 0 && day <= monthLength[month - 1];
 }
 
-// justyne
 const removeReimbursement = async (req, res) => {
     if (req.user.role != 'employee') {
         res.status(400).send("This function is only for employees.")
@@ -465,8 +485,6 @@ const removeReimbursement = async (req, res) => {
     let reimbursementItem = await reimburseService.getReimbursementItem(getReimbursementParams);
 
     if (reimbursementItem) {
-        let orNumber = 'ITEM#' + req.params.orNumber;
-        console.log(orNumber);
 
         if (reimbursementItem.currentStatus == 'draft') {
             let deleteReimbursementParams = {
@@ -489,7 +507,6 @@ const removeReimbursement = async (req, res) => {
     }
 }
 
-// john
 const submitReimbursement = async (req, res) => {
     // role validation
     if (req.user.role != 'employee') {
@@ -498,7 +515,6 @@ const submitReimbursement = async (req, res) => {
     }
 
     let reimbursement = '';
-    // const cutOff = await loginController.exportLatestCutOffs()
     const transactionNum = uuidv4()
     const { cutOffCapAmount, year, cutOffCycle, cutOff } = await loginController.exportLatestCutOffs()
 
@@ -511,15 +527,17 @@ const submitReimbursement = async (req, res) => {
             ':sk': 'ITEM'
         }
     }
-
-    const totalReimbursementAmount = await reimburseService.getSum(getSumParams)
+    let totalReimbursementAmount = 0
+    const reimbursementAmounts = await reimburseService.dbQuery(getSumParams)
+    reimbursementAmounts.forEach(item => {
+        totalReimbursementAmount = totalReimbursementAmount + item.amount
+    })
 
     if (totalReimbursementAmount > cutOffCapAmount) {
-        res.status(400).send("Total Cutoff Amount Exceeded, Submission failed")
+        res.status(400).send(`Total cutoff amount exceeded (Cap: ${cutOffCapAmount}). Submission failed.`)
         return
     }
 
-    console.log(req.user.employeeNumber + "#" + year + "#" + cutOffCycle)
     const searchParams = {
         TableName: TRANSACTIONS_TABLE,
         FilterExpression: 'PK = :pk AND SK BETWEEN:skCutoff AND :skUser AND currentStatus = :currentStatus',
@@ -532,7 +550,7 @@ const submitReimbursement = async (req, res) => {
     };
     let reimbursementDetails = await reimburseHrService.getReimbursement(searchParams)
     if (reimbursementDetails == 0) {
-        res.status(400).send("Reimbursement not found or no reimbursement has been drafted.")
+        res.status(400).send("Reimbursement not found, no reimbursement has been drafted.")
         return
     }
     const approvalParams = [];
@@ -554,13 +572,10 @@ const submitReimbursement = async (req, res) => {
         )
     })
 
-    console.log(approvalParams)
     await reimburseHrService.approvalReimbursement(approvalParams)
     res.status(200).send("Reimbursement submitted.")
-
 }
 
-// john
 const searchReimbursement = async (req, res) => {
     if (req.user.role != 'hr') {
         res.status(400).send("This function is only for HR personnel.")
@@ -574,7 +589,6 @@ const searchReimbursement = async (req, res) => {
         "cutOffCycle": req.params.cutOffCycle,
         "year": req.params.year
     }
-    console.log(employeeDetails)
 
     const cutOff = await loginController.exportLatestCutOffs()
 
@@ -595,16 +609,11 @@ const searchReimbursement = async (req, res) => {
     var params = {
         TableName: USERS_TABLE,
         ExpressionAttributeValues:
-            expressionAttrObj
-
-        ,
+            expressionAttrObj,
         FilterExpression: nameTempFilter,
-
-
     };
 
-    const userInfo = await reimburseHrService.getEmployeeNum(params)
-
+    const userInfo = await reimburseHrService.dbScan(params)
     const reimbursementsParams = [];
 
     userInfo.forEach(item => {
@@ -625,29 +634,29 @@ const searchReimbursement = async (req, res) => {
         searchReimbursementResult.push(await reimburseHrService.getListReimbursementByEmployee(item))
     }
 
-const reimbursementDetailsParams = [];
+    const reimbursementDetailsParams = [];
 
-userInfo.forEach(item => {
-    reimbursementDetailsParams.push({
-    TableName: TRANSACTIONS_TABLE,
-    FilterExpression: 'contains(PK, :pk) AND contains(SK, :sk) AND currentStatus<>:currentStatus',
-    ExpressionAttributeValues: {
-        ':pk': item.employeeNumber + "#" + year + "#" + cutOffCycle,
-        ':sk' : 'ITEM#',
-        ':currentStatus': 'draft'
+    userInfo.forEach(item => {
+        reimbursementDetailsParams.push({
+            TableName: TRANSACTIONS_TABLE,
+            FilterExpression: 'contains(PK, :pk) AND contains(SK, :sk) AND currentStatus<>:currentStatus',
+            ExpressionAttributeValues: {
+                ':pk': item.employeeNumber + "#" + year + "#" + cutOffCycle,
+                ':sk': 'ITEM#',
+                ':currentStatus': 'draft'
+            }
+        })
+    })
+
+    let getDetailsReimbursementResult = [];
+
+    for (const item of reimbursementDetailsParams) {
+        getDetailsReimbursementResult.push(await reimburseHrService.dbScan(item))
     }
-})
-})
 
-let getDetailsReimbursementResult = [];
+    let reimbursements = [searchReimbursementResult, getDetailsReimbursementResult];
 
-for (const item of reimbursementDetailsParams) {
-    getDetailsReimbursementResult.push(await reimburseHrService.getDetailsHr(item))
-}
-
-let reimbursements = [searchReimbursementResult, getDetailsReimbursementResult];
-
-res.status(200).send(searchReimbursementResult.length == 0 ? "No employee/s found" : reimbursements);
+    res.status(200).send(searchReimbursementResult.length == 0 ? "No employee/s found" : reimbursements);
 }
 
 

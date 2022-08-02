@@ -15,7 +15,7 @@ const logout = async(req, res) => {
         }
     }
     await loginService.updateToken(updateParams);
-    res.send("succesful logout");
+    res.send("Logout successful.");
 }
 
 module.exports = { logout }

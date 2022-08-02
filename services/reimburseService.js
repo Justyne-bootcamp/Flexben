@@ -1,8 +1,7 @@
 const AWS = require('aws-sdk')
 const dynamoDbClient = new AWS.DynamoDB.DocumentClient();
 
-// charles
-const checkIfExistingReimbursement = async (params) => {
+const dbQuery = async (params) => {
     try {
         const { Items } = await dynamoDbClient.query(params).promise();
         if (Items) {
@@ -15,7 +14,6 @@ const checkIfExistingReimbursement = async (params) => {
     }
 }
 
-// charles
 const addReimbursement = async (addReimbursementParams) => {
     try {
         const { UnprocessedItems } = await dynamoDbClient.batchWrite(addReimbursementParams).promise();
@@ -29,53 +27,6 @@ const addReimbursement = async (addReimbursementParams) => {
     }
 }
 
-// charles
-const getSum = async (getSumParams) => {
-    try {
-        const { Items } = await dynamoDbClient.query(getSumParams).promise();
-        if (Items) {
-            let totalReimbursementAmount = 0
-            Items.forEach(item => {
-                totalReimbursementAmount = totalReimbursementAmount + item.amount
-            })
-            return totalReimbursementAmount
-        } else {
-            return
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-
-// alex
-const getReimbursement = async (params) => {
-    try {
-        const { Items } = await dynamoDbClient.query(params).promise();
-        if (Items) {
-            return Items
-        } else {
-            return 
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-
-// alex
-const reimbursementList = async (params) => {
-    try {
-        const { Items } = await dynamoDbClient.query(params).promise();
-        if (Items) {
-            return Items
-        } else {
-            return 
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-
-//Justyne
 const getReimbursementItem = async (params) => {
     try {
         const { Item } = await dynamoDbClient.get(params).promise();
@@ -94,11 +45,8 @@ const deleteReimbursementItem = async (params) => {
 }
 
 module.exports = {
-    checkIfExistingReimbursement,
+    dbQuery,
     addReimbursement,
-    getSum,
-    reimbursementList,
-    getReimbursement,
     getReimbursementItem,
     deleteReimbursementItem
 }
