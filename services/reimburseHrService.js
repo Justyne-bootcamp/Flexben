@@ -60,23 +60,9 @@ const approvalReimbursement = async (params) => {
     }
 }
 
-const getListReimbursementByEmployee = async (params) => {
-    try {
-        const { Item } = await dynamoDbClient.get(params).promise();
-        if (Item) {
-            return Item
-        } else {
-            return
-        }
-    } catch (error) {
-        console.log(error);
-    }
-}
-
 module.exports = {
     dbScan,
     getReimbursementByCutOff,
     approvalReimbursement,
     getReimbursement,
-    getListReimbursementByEmployee,
 }

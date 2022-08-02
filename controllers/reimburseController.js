@@ -192,7 +192,7 @@ const getReimbursement = async (req, res) => {
         KeyConditionExpression: 'PK = :pk and begins_with ( SK, :sk)',
     }
     let reimbursementCollection = await reimburseService.dbQuery(getReimbursementParams)
-    res.status(200).send(reimbursementCollection.length != 0? reimbursementCollection : "No reimbursement found.")
+    res.status(200).send(reimbursementCollection.length != 0 ? reimbursementCollection : "No reimbursement found.")
 }
 
 
@@ -234,7 +234,7 @@ const approvalReimbursement = async (req, res) => {
         return
     }
     const cutOff = await loginController.exportLatestCutOffs()
-    
+
     let newStatus = ""
     let approvalStatement = ""
     if (req.params.action == "approve") {
@@ -266,7 +266,7 @@ const approvalReimbursement = async (req, res) => {
         return
     }
 
-    
+
     const approvalParams = [];
     reimbursementDetails.forEach(item => {
         approvalParams.push(
@@ -388,6 +388,10 @@ const getDetailsHr = async (req, res) => {
     let getDetailsHrReturnItems = getDetailsHrReturn.filter(obj => {
         return obj.SK.includes("ITEM")
     })
+    // destructure object with SK of User
+    let getDetailsHrReturnUser = getDetailsHrReturn.filter(obj => {
+        return obj.SK.includes("USER")
+    })
     getDetailsHrReturnItems = getDetailsHrReturnItems.map(item => {
         return {
             "dateOfPurchase": item.dateOfPurchase,
@@ -399,16 +403,6 @@ const getDetailsHr = async (req, res) => {
         }
     })
 
-    // get employeeName from employeeNumber
-    const getEmployeeName = {
-        FilterExpression: "employeeNumber = :employeeNumber",
-        ExpressionAttributeValues: {
-            ":employeeNumber": req.params.employeeNumber,
-        },
-        ProjectionExpression: "firstName, lastName, employeeNumber",
-        TableName: USERS_TABLE
-    }
-    let employeeName = (await reimburseHrService.dbScan(getEmployeeName))[0]
     // get sum of reimbursement amounts based from PK
     const getSumParams = {
         TableName: TRANSACTIONS_TABLE,
@@ -425,7 +419,7 @@ const getDetailsHr = async (req, res) => {
     })
     let getDetailsHrResult = {
         "employeeNumber": req.params.employeeNumber,
-        "employeeName": employeeName.lastName + ", " + employeeName.firstName,
+        "employeeName": getDetailsHrReturnUser[0].lastName + ", " + getDetailsHrReturnUser[0].firstName,
         "dateSubmitted": getDetailsHrReturnCutOff[0].dateSubmitted,
         "totalReimbursementAmount": totalReimbursementAmount,
         "transactionNumber": getDetailsHrReturnCutOff[0].transactionNumber,
@@ -581,6 +575,11 @@ const searchReimbursement = async (req, res) => {
         return
     }
 
+    if (!req.query.employeeNumber && !req.query.firstName && !req.query.lastName) {
+        res.status(400).send("Please fill up atleast one field.")
+        return
+    }
+
     let employeeDetails = {
         "employeeNumber": req.query.employeeNumber ? req.query.employeeNumber : "",
         "firstName": req.query.firstName ? (req.query.firstName).toUpperCase() : "",
@@ -604,7 +603,6 @@ const searchReimbursement = async (req, res) => {
         expressionAttrObj[':employeeNumber'] = employeeDetails.employeeNumber
     }
 
-
     let params = {
         TableName: USERS_TABLE,
         ExpressionAttributeValues:
@@ -619,9 +617,10 @@ const searchReimbursement = async (req, res) => {
         reimbursementsParams.push(
             {
                 TableName: TRANSACTIONS_TABLE,
-                Key: {
-                    'PK': item.employeeNumber + "#" + year + "#" + cutOffCycle,
-                    'SK': 'CUTOFF#' + cutOffCycle
+                FilterExpression: 'contains(PK, :pk) AND currentStatus<>:currentStatus',
+                ExpressionAttributeValues: {
+                    ':pk': item.employeeNumber + "#" + year + "#" + cutOffCycle,
+                    ':currentStatus': 'draft'
                 }
             }
         )
@@ -630,32 +629,63 @@ const searchReimbursement = async (req, res) => {
     let searchReimbursementResult = []
 
     for (const item of reimbursementsParams) {
-        searchReimbursementResult.push(await reimburseHrService.getListReimbursementByEmployee(item))
+        searchReimbursementResult.push(await reimburseHrService.dbScan(item))
     }
 
-    const reimbursementDetailsParams = [];
+    let listOfReimbursementPerEmployee = []
 
-    userInfo.forEach(item => {
-        reimbursementDetailsParams.push({
-            TableName: TRANSACTIONS_TABLE,
-            FilterExpression: 'contains(PK, :pk) AND contains(SK, :sk) AND currentStatus<>:currentStatus',
-            ExpressionAttributeValues: {
-                ':pk': item.employeeNumber + "#" + year + "#" + cutOffCycle,
-                ':sk': 'ITEM#',
-                ':currentStatus': 'draft'
+    for (const item of searchReimbursementResult) {
+
+        // destructure object with SK of CUTOFF
+        let getDetailsHrReturnCutOff = item.filter(obj => {
+            return obj.SK.includes("CUTOFF")
+        })
+        // destructure object with SK of ITEM
+        let getDetailsHrReturnItems = item.filter(obj => {
+            return obj.SK.includes("ITEM")
+        })
+        // destructure object with SK of User
+        let getDetailsHrReturnUser = item.filter(obj => {
+            return obj.SK.includes("USER")
+        })
+        getDetailsHrReturnItems = getDetailsHrReturnItems.map(item => {
+            return {
+                "dateOfPurchase": item.dateOfPurchase,
+                "orNumber": item.SK.split("#")[1],
+                "nameOfEstablishment": item.nameOfEstablishment,
+                "tinOfEstablishment": item.tinOfEstablishment,
+                "amount": item.amount,
+                "category": JSON.parse(item.categoryDetails).name
             }
         })
-    })
 
-    let getDetailsReimbursementResult = [];
-
-    for (const item of reimbursementDetailsParams) {
-        getDetailsReimbursementResult.push(await reimburseHrService.dbScan(item))
+        // get sum of reimbursement amounts based from PK
+        const getSumParams = {
+            TableName: TRANSACTIONS_TABLE,
+            KeyConditionExpression: 'PK = :pk and begins_with (SK, :sk)',
+            ExpressionAttributeValues: {
+                ':pk': getDetailsHrReturnCutOff[0].PK,
+                ':sk': 'ITEM'
+            }
+        }
+        let totalReimbursementAmount = 0
+        const reimbursementAmounts = await reimburseService.dbQuery(getSumParams)
+        reimbursementAmounts.forEach(item => {
+            totalReimbursementAmount = totalReimbursementAmount + item.amount
+        })
+        let getDetailsHrResult = {
+            "employeeNumber": req.params.employeeNumber,
+            "employeeName": getDetailsHrReturnUser[0].lastName + ", " + getDetailsHrReturnUser[0].firstName,
+            "dateSubmitted": getDetailsHrReturnCutOff[0].dateSubmitted,
+            "totalReimbursementAmount": totalReimbursementAmount,
+            "transactionNumber": getDetailsHrReturnCutOff[0].transactionNumber,
+            "status": getDetailsHrReturnCutOff[0].currentStatus,
+            "reimbursementItems": getDetailsHrReturnItems
+        }
+        listOfReimbursementPerEmployee.push(getDetailsHrResult)
     }
 
-    let reimbursements = [searchReimbursementResult, getDetailsReimbursementResult];
-
-    res.status(200).send(searchReimbursementResult.length == 0 ? "No employee/s found" : reimbursements);
+    res.status(200).send(searchReimbursementResult.length == 0? "No records found." : listOfReimbursementPerEmployee);
 }
 
 
