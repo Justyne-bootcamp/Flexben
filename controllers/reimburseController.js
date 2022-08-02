@@ -220,7 +220,7 @@ const reimbursementList = async (req, res) => {
 }
 
 // alex
-const approveReimbursement = async (req, res) => {
+const approvalReimbursement = async (req, res) => {
     if (req.user.role != 'hr') {
         res.status(400).send("This function is only for HR personnel")
         return
@@ -242,6 +242,18 @@ const approveReimbursement = async (req, res) => {
         res.status(400).send("Reimbursement not found, not yet submitted, or has been approved/rejected.")
         return
     }
+
+    let newStatus = ""
+    let approvalStatement = ""
+    if (req.params.action == "approve") {
+        newStatus = "approved"
+        approvalStatement = "Reimbursement approved."
+    }
+    else if (req.params.action == "reject") {
+        newStatus = "rejected"
+        approvalStatement = "Reimbursement rejected."
+    }
+
     const approvalParams = [];
     reimbursementDetails.forEach(item => {
         approvalParams.push(
@@ -251,60 +263,16 @@ const approveReimbursement = async (req, res) => {
                     'PK': item.PK,
                     'SK': item.SK
                 },
-                UpdateExpression: "set currentStatus = :newStatus",
-                ExpressionAttributeValues: {
-                    ":newStatus": "approved",
-                },
-            }
-        )
-    })
-    console.log(approvalParams)
-    await reimburseHrService.approvalReimbursement(approvalParams)
-    res.status(200).send("Reimbursement approved.")
-}
-
-// alex
-const rejectReimbursement = async (req, res) => {
-    if (req.user.role != 'hr') {
-        res.status(400).send("This function is only for HR personnel")
-        return
-    }
-    const cutOff = await loginController.exportLatestCutOffs()
-    console.log(req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle)
-    const searchParams = {
-        TableName: TRANSACTIONS_TABLE,
-        FilterExpression: 'PK = :pk AND SK BETWEEN:skCutoff AND :skUser AND currentStatus = :currentStatus',
-        ExpressionAttributeValues: {
-            ":currentStatus": "submitted",
-            ':skCutoff': "CUTOFF",
-            ':skUser': "USER",
-            ':pk': req.params.employeeNumber + "#" + cutOff.year + "#" + cutOff.cutOffCycle,
-        },
-    };
-    let reimbursementDetails = await reimburseHrService.getReimbursement(searchParams)
-    if (reimbursementDetails == 0) {
-        res.status(400).send("Reimbursement not found, not yet submitted, or has been approved/rejected.")
-        return
-    }
-    const rejectParams = [];
-    reimbursementDetails.forEach(item => {
-        rejectParams.push(
-            {
-                TableName: TRANSACTIONS_TABLE,
-                Key: {
-                    'PK': item.PK,
-                    'SK': item.SK
-                },
                 UpdateExpression: "set currentStatus = :newStatus, dateUpdated = :dateUpdated",
                 ExpressionAttributeValues: {
-                    ":newStatus": "rejected",
+                    ":newStatus": newStatus,
                     ":dateUpdated": getDateToday()
                 },
             }
         )
     })
-    await reimburseHrService.approvalReimbursement(rejectParams)
-    res.status(200).send("Reimbursement rejected.")
+    await reimburseHrService.approvalReimbursement(approvalParams)
+    res.status(200).send(approvalStatement)
 }
 
 // charles
@@ -689,8 +657,7 @@ module.exports = {
     getReimbursementByCutOff,
     getReimbursement,
     reimbursementList,
-    approveReimbursement,
-    rejectReimbursement,
+    approvalReimbursement,
     getDetailsHr,
     submitReimbursement,
     removeReimbursement,

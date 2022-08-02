@@ -19,12 +19,12 @@ app.get("/categories", loginController.authenticateToken, reimburseController.vi
 app.post("/logout", loginController.authenticateToken, logoutController.logout)
 // // -------------------------EMPLOYEES-------------------------
 
-// alex
-// // Get all reimbursement collection
 // Justyne
 // // Download a specific reimbursement collection
 app.get("/employee/reimbursement/download", loginController.authenticateToken, printController.downloadReimbursement)
 
+// alex
+// // Get all reimbursement collection
 app.get("/employee/reimbursement/:year", loginController.authenticateToken, reimburseController.getReimbursement)
 app.get("/employee/reimbursement", loginController.authenticateToken, reimburseController.getReimbursement)
 
@@ -32,7 +32,7 @@ app.get("/employee/reimbursement", loginController.authenticateToken, reimburseC
 // // Get all items from a specific reimbursement collection
 app.get("/employee/reimbursement/items/:cutoff_id", loginController.authenticateToken, reimburseController.reimbursementList)
 
-// charles + all debug
+// charles
 // Add reimbursement item, automatically creates a reimbursement collection if not made
 app.post("/employee/reimbursement/item/add", loginController.authenticateToken, reimburseController.addReimbursement)
 
@@ -56,11 +56,7 @@ app.get("/hr/reimbursement/search", loginController.authenticateToken, reimburse
 
 // alex
 // Reject a specific reimbursement collection
-app.post("/hr/reimbursement/reject/:employeeNumber", loginController.authenticateToken, reimburseController.rejectReimbursement)
-
-// alex
-// // Approve a specific reimbursement collection
-app.post("/hr/reimbursement/approve/:employeeNumber", loginController.authenticateToken, reimburseController.approveReimbursement)
+app.post("/hr/reimbursement/approval/:action/:employeeNumber", loginController.authenticateToken, reimburseController.approvalReimbursement)
 
 // charles
 // Get all submitted reimbursement collection in a cut off
