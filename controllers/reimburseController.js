@@ -68,7 +68,7 @@ const addReimbursement = async (req, res) => {
 
     // date validation
     if (!isValidDate(reimbursementItemDetails.dateOfPurchase)) {
-        res.status(400).send("Invalid date or follow the date format: YYYY/MM/DD")
+        res.status(400).send("Invalid date or follow the date format: MM/DD/YYYY")
         return
     }
 
@@ -362,11 +362,11 @@ const getDateToday = () => {
 
 function isValidDate(dateString)
 {
-    // Parse the date parts to integers YYYY/MM/DD
+    // Parse the date parts to integers MM/DD/YYYY
     var parts = dateString.split("/");
-    var day = parseInt(parts[2], 10);
-    var month = parseInt(parts[1], 10);
-    var year = parseInt(parts[0], 10);
+    var day = parseInt(parts[1], 10);
+    var month = parseInt(parts[0], 10);
+    var year = parseInt(parts[2], 10);
 
     // Check the ranges of month and year
     if(year < 1000 || year > 3000 || month == 0 || month > 12)
