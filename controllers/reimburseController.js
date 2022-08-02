@@ -1,7 +1,7 @@
 const reimburseService = require('../services/reimburseService')
 const reimburseHrService = require('../services/reimburseHrService')
 const loginController = require('../controllers/loginController')
-const {v4 : uuidv4} = require('uuid')
+const { v4: uuidv4 } = require('uuid')
 
 const MIN_REIMBURSABLE_AMOUNT = process.env.MIN_REIMBURSABLE_AMOUNT
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE
@@ -148,7 +148,7 @@ const addReimbursement = async (req, res) => {
             [TRANSACTIONS_TABLE]: requestItemsParams
         }
     }
-    console.log(addReimbursementParams);
+
     await reimburseService.addReimbursement(addReimbursementParams)
 
     // take sum of amount for a transaction
@@ -327,6 +327,53 @@ const getReimbursementByCutOff = async (req, res) => {
 
     let getReimbursementByCutOffResult = await reimburseHrService.getReimbursementByCutOff(getReimbursementByCutOffParams)
 
+    for (const item of getReimbursementByCutOffResult) {
+        // finding employee name using employee number
+        item["employeeNumber"] = item["PK"].split('#')[0]
+        const getEmployeeName = {
+            FilterExpression: "employeeNumber = :employeeNumber",
+            ExpressionAttributeValues: {
+                ":employeeNumber": item["employeeNumber"],
+            },
+            ProjectionExpression: "firstName, lastName, employeeNumber",
+            TableName: USERS_TABLE
+        }
+        let employeeName = (await reimburseHrService.getEmployeeName(getEmployeeName))[0]
+        item["employeeName"] = employeeName.lastName + ", " + employeeName.firstName
+
+        // getting sum of reimbursement items
+        const getSumParams = {
+            TableName: TRANSACTIONS_TABLE,
+            KeyConditionExpression: 'PK = :pk and begins_with (SK, :sk)',
+            ExpressionAttributeValues: {
+                ':pk': item["PK"],
+                ':sk': 'ITEM'
+            }
+        }
+        const totalReimbursementAmount = await reimburseService.getSum(getSumParams)
+        item["totalReimbursementAmount"] = totalReimbursementAmount
+    }
+    getReimbursementByCutOffResult = getReimbursementByCutOffResult.map(item => {
+        return {
+            "transactionNumber": item.transactionNumber,
+            "employeeNumber": item.employeeNumber,
+            "employeeName": item.employeeName,
+            "totalReimbursementAmount": item.totalReimbursementAmount,
+            "dateSubmitted": item.dateSubmitted,
+            "status": item.currentStatus
+        }
+    })
+
+    // arrange by status: submitted > rejected > approved
+    getReimbursementByCutOffResult.sort(function (a, b) {
+        var nameA = a.status.toLowerCase(), nameB = b.status.toLowerCase()
+        if (nameA < nameB)
+            return 1;
+        if (nameA > nameB)
+            return -1;
+        return 0;
+    })
+
     res.send(getReimbursementByCutOffResult.length != 0 ? getReimbursementByCutOffResult : "No reimbursements found.")
 }
 
@@ -346,9 +393,58 @@ const getDetailsHr = async (req, res) => {
         }
     }
 
-    let getDetailsHrResult = await reimburseHrService.getDetailsHr(getDetailsHrParams)
+    let getDetailsHrReturn = await reimburseHrService.getDetailsHr(getDetailsHrParams)
+    // destructure object with SK of CUTOFF
+    let getDetailsHrReturnCutOff = getDetailsHrReturn.filter(obj => {
+        return obj.SK.includes("CUTOFF")
+    })
+    // destructure object with SK of ITEM
+    let getDetailsHrReturnItems = getDetailsHrReturn.filter(obj => {
+        return obj.SK.includes("ITEM")
+    })
+    getDetailsHrReturnItems = getDetailsHrReturnItems.map(item => {
+        return {
+            "dateOfPurchase": item.dateOfPurchase,
+            "orNumber": item.SK.split("#")[1],
+            "nameOfEstablishment": item.nameOfEstablishment,
+            "tinOfEstablishment": item.tinOfEstablishment,
+            "amount": item.amount,
+            "category": JSON.parse(item.categoryDetails).name
+        }
+    })
 
-    res.send(getDetailsHrResult.length != 0 ? getDetailsHrResult : "No reimbursements found.")
+    // get employeeName from employeeNumber
+    const getEmployeeName = {
+        FilterExpression: "employeeNumber = :employeeNumber",
+        ExpressionAttributeValues: {
+            ":employeeNumber": req.params.employeeNumber,
+        },
+        ProjectionExpression: "firstName, lastName, employeeNumber",
+        TableName: USERS_TABLE
+    }
+    let employeeName = (await reimburseHrService.getEmployeeName(getEmployeeName))[0]
+    // get sum of reimbursement amounts based from PK
+    const getSumParams = {
+        TableName: TRANSACTIONS_TABLE,
+        KeyConditionExpression: 'PK = :pk and begins_with (SK, :sk)',
+        ExpressionAttributeValues: {
+            ':pk': getDetailsHrReturnCutOff[0].PK,
+            ':sk': 'ITEM'
+        }
+    }
+    const totalReimbursementAmount = await reimburseService.getSum(getSumParams)
+
+    let getDetailsHrResult = {
+        "employeeNumber": req.params.employeeNumber,
+        "employeeName": employeeName.lastName + ", " + employeeName.firstName,
+        "dateSubmitted": getDetailsHrReturnCutOff[0].dateSubmitted,
+        "totalReimbursementAmount": totalReimbursementAmount,
+        "transactionNumber": getDetailsHrReturnCutOff[0].transactionNumber,
+        "status": getDetailsHrReturnCutOff[0].currentStatus,
+        "reimbursementItems": getDetailsHrReturnItems
+    }
+
+    res.send(getDetailsHrReturn.length != 0 ? getDetailsHrResult : "No reimbursements found.")
 }
 
 const getDateToday = () => {
@@ -361,8 +457,7 @@ const getDateToday = () => {
     return today
 }
 
-function isValidDate(dateString)
-{
+function isValidDate(dateString) {
     // Parse the date parts to integers MM/DD/YYYY
     var parts = dateString.split("/");
     var day = parseInt(parts[1], 10);
@@ -370,20 +465,20 @@ function isValidDate(dateString)
     var year = parseInt(parts[2], 10);
 
     // Check the ranges of month and year
-    if(year < 1000 || year > 3000 || month == 0 || month > 12)
+    if (year < 1000 || year > 3000 || month == 0 || month > 12)
         return false;
 
-    var monthLength = [ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ];
+    var monthLength = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
     // Adjust for leap years
-    if(year % 400 == 0 || (year % 100 != 0 && year % 4 == 0))
+    if (year % 400 == 0 || (year % 100 != 0 && year % 4 == 0))
         monthLength[1] = 29;
 
     // Check the range of the day
     return day > 0 && day <= monthLength[month - 1];
-};
+}
 
-//Justyne
+// justyne
 const removeReimbursement = async (req, res) => {
     if (req.user.role != 'employee') {
         res.status(400).send("This function is only for employees.")
@@ -426,6 +521,7 @@ const removeReimbursement = async (req, res) => {
     }
 }
 
+// john
 const submitReimbursement = async (req, res) => {
     // role validation
     if (req.user.role != 'employee') {
@@ -484,7 +580,7 @@ const submitReimbursement = async (req, res) => {
                 ExpressionAttributeValues: {
                     ":dateUpdated": getDateToday(),
                     ":newStatus": "submitted",
-                    ":transNum": req.user.companyCode + "-" + year + cutOffCycle + "-" + getDateToday().split('/').join('')  + "-" + transactionNum.split('-').join('')
+                    ":transNum": req.user.companyCode + "-" + year + cutOffCycle + "-" + getDateToday().split('/').join('') + "-" + transactionNum.split('-').join('')
                 },
             }
         )
@@ -496,7 +592,7 @@ const submitReimbursement = async (req, res) => {
 
 }
 
-
+// john
 const searchReimbursement = async (req, res) => {
     if (req.user.role != 'hr') {
         res.status(400).send("This function is only for HR personnel.")
@@ -597,13 +693,6 @@ module.exports = {
     rejectReimbursement,
     getDetailsHr,
     submitReimbursement,
-    // getReimbursement,
-    // getReimbursementFull,
-    // reimbursementList,
     removeReimbursement,
-    // submitReimbursement,
     searchReimbursement,
-    // approveReimbursement,
-    // rejectReimbursement,
-    // getCategories
 }
