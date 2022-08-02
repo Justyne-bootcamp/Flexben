@@ -36,7 +36,7 @@ const login = async (req, res) => {
             const accessToken = jwt.sign(user, SECRET_KEY)
 
             // update stateful jwt in db
-            var updateJwtParams = {
+            let updateJwtParams = {
                 TableName: USERS_TABLE,
                 Key: {
                     employeeId: credentials[0]
@@ -113,21 +113,15 @@ const authenticateToken = (req, res, next) => {
 }
 
 const exportCategories = async () => {
-    return new Promise(function (resolve, _reject) {
-        resolve(categoryList)
-    })
+    return Promise.resolve(categoryList)
 }
 
 const exportCutOffs = async () => {
-    return new Promise(function (resolve, _reject) {
-        resolve(cutOffList)
-    })
+    return Promise.resolve(cutOffList)
 }
 
 const exportLatestCutOffs = async () => {
-    return new Promise(function (resolve, _reject) {
-        resolve(cutOffList[0])
-    })
+    return Promise.resolve(cutOffList[0])
 }
 
 module.exports = {

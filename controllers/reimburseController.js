@@ -7,7 +7,7 @@ const MIN_REIMBURSABLE_AMOUNT = process.env.MIN_REIMBURSABLE_AMOUNT
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE
 const USERS_TABLE = process.env.USERS_TABLE
 
-const viewCategories = async (req, res) => {
+const viewCategories = async (_req, res) => {
     const categoryList = await loginController.exportCategories()
     res.send(categoryList)
 }
@@ -215,7 +215,7 @@ const reimbursementList = async (req, res) => {
     let reimbursementItems = await reimburseService.dbQuery(reimbursementItemParams)
 
     const getReimbursementItems = [];
-    reimbursementItems.map(item => {
+    reimbursementItems.forEach(item => {
         getReimbursementItems.push({
             "dateOfPurchase": item.dateOfPurchase,
             "orNumber": item.SK.split("#")[1],
@@ -352,7 +352,7 @@ const getReimbursementByCutOff = async (req, res) => {
 
     // arrange by status: submitted > rejected > approved
     getReimbursementByCutOffResult.sort(function (a, b) {
-        var nameA = a.status.toLowerCase(), nameB = b.status.toLowerCase()
+        let nameA = a.status.toLowerCase(), nameB = b.status.toLowerCase()
         if (nameA < nameB)
             return 1;
         if (nameA > nameB)
@@ -448,16 +448,16 @@ const getDateToday = () => {
 
 function isValidDate(dateString) {
     // Parse the date parts to integers MM/DD/YYYY
-    var parts = dateString.split("/");
-    var day = parseInt(parts[1], 10);
-    var month = parseInt(parts[0], 10);
-    var year = parseInt(parts[2], 10);
+    let parts = dateString.split("/");
+    let day = parseInt(parts[1], 10);
+    let month = parseInt(parts[0], 10);
+    let year = parseInt(parts[2], 10);
 
     // Check the ranges of month and year
     if (year < 1000 || year > 3000 || month == 0 || month > 12)
         return false;
 
-    var monthLength = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let monthLength = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
     // Adjust for leap years
     if (year % 400 == 0 || (year % 100 != 0 && year % 4 == 0))
@@ -494,7 +494,7 @@ const removeReimbursement = async (req, res) => {
                     SK: 'ITEM#' + req.params.orNumber
                 }
             }
-            let item = await reimburseService.deleteReimbursementItem(deleteReimbursementParams);
+            await reimburseService.deleteReimbursementItem(deleteReimbursementParams);
 
             res.status(200).send("Reimbursement deleted.");
         }
@@ -514,9 +514,8 @@ const submitReimbursement = async (req, res) => {
         return
     }
 
-    let reimbursement = '';
     const transactionNum = uuidv4()
-    const { cutOffCapAmount, year, cutOffCycle, cutOff } = await loginController.exportLatestCutOffs()
+    const { cutOffCapAmount, year, cutOffCycle } = await loginController.exportLatestCutOffs()
 
 
     const getSumParams = {
@@ -606,7 +605,7 @@ const searchReimbursement = async (req, res) => {
     }
 
 
-    var params = {
+    let params = {
         TableName: USERS_TABLE,
         ExpressionAttributeValues:
             expressionAttrObj,
